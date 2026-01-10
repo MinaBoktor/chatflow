@@ -1,0 +1,8 @@
+playwright
+opencv-python
+numpy
+pyautogui
+Pillow
+
+[:sys_platform == "win32"]
+pywin32
