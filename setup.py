@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name="chatflow",
-    version="1.0.0",
+    version="2.0.0",
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         "playwright",
         "opencv-python",
@@ -12,7 +13,5 @@ setup(
         "Pillow",
         "pywin32; sys_platform == 'win32'"
     ],
-    author="Mina Maged",
-    description="A robust WhatsApp Web automation library using Playwright and Computer Vision.",
-    python_requires='>=3.8',
+    description="Production-ready WhatsApp Automation Library",
 )
