@@ -5,15 +5,15 @@ import pyautogui
 from playwright.sync_api import sync_playwright
 from . import config, utils, exceptions
 
-logging.basicConfig(level=logging.INFO, format='[ChatFlow] %(message)s')
-logger = logging.getLogger("ChatFlow")
+logging.basicConfig(level=logging.INFO, format='[zajel] %(message)s')
+logger = logging.getLogger("zajel")
 
-class ChatFlow:
+class Zajel:
     def __init__(self, session_dir=config.DEFAULT_SESSION_DIR, headless=False):
         self.session_dir = session_dir
         self.headless = headless
         
-        logger.info(f"Starting ChatFlow (Session: {self.session_dir})")
+        logger.info(f"Starting zajel (Session: {self.session_dir})")
         self.playwright = sync_playwright().start()
         
         self.browser = self.playwright.chromium.launch_persistent_context(

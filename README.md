@@ -1,4 +1,4 @@
-# ChatFlow 👁️
+# Zajel 👁️
 
 **The Vision-Enhanced, Stealth-First WhatsApp Automation Library**
 
@@ -6,7 +6,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-win%20|%20linux%20|%20macos-lightgrey)]()
 
-**ChatFlow** is a production-grade automation library for WhatsApp Web. Unlike fragile DOM-based bots that break when WhatsApp updates their CSS, ChatFlow uses a **Hybrid Computer Vision Engine** to visually verify actions.
+**Zajel** (Arabic: زاجل - meaning "carrier pigeon") is a production-grade automation library for WhatsApp Web. Unlike fragile DOM-based bots that break when WhatsApp updates their CSS, Zajel uses a **Hybrid Computer Vision Engine** to visually verify actions.
 
 It was engineered specifically to solve the "Ghost Click" and "RTL Mirroring" issues common in Arabic/Hebrew automation, making it the most reliable choice for multilingual support.
 
@@ -15,16 +15,13 @@ It was engineered specifically to solve the "Ghost Click" and "RTL Mirroring" is
 ## 🌟 Key Features
 
 - **👁️ Visual Verification Protocol**  
-  Most bots assume a message is sent after clicking "Enter". ChatFlow **watches** the screen using OpenCV. It detects the gray "Clock" icon and waits specifically for it to turn into a "Tick" before proceeding.
+  Most bots assume a message is sent after clicking "Enter". Zajel **watches** the screen using OpenCV. It detects the gray "Clock" icon and waits specifically for it to turn into a "Tick" before proceeding.
 
 - **🌍 Native Arabic/RTL Support**  
   Handles mirrored interfaces automatically. No need to switch your phone's language to English.
 
 - **📎 Universal Media Clipboard**  
   Uses OS-level clipboard injection (`CF_HDROP`) to send **PDFs, Images, Videos, and Audio** files without navigating complex attachment menus.
-
-- **👻 Stealth Listening**  
-  Reads incoming messages from the sidebar **without opening the chat**. This allows you to filter messages (White-List) without triggering the "Blue Ticks" for unwanted contacts.
 
 - **🛡️ Anti-Ban Safeguards**
   - **Randomized Delays:** Simulates human thinking time between bulk actions
@@ -38,12 +35,12 @@ It was engineered specifically to solve the "Ghost Click" and "RTL Mirroring" is
 ### 1. Install the package
 
 ```bash
-pip install chatflow-bot
+pip install zajel
 ```
 
 ### 2. Install Playwright Browsers
 
-ChatFlow uses a dedicated Chromium instance (not your personal Chrome) to ensure a clean session.
+Zajel uses a dedicated Chromium instance (not your personal Chrome) to ensure a clean session.
 
 ```bash
 playwright install chromium
@@ -60,16 +57,16 @@ playwright install chromium
 
 ### 1. The Basics
 
-When you run ChatFlow for the first time, a browser window will open. You must scan the QR code with your phone. The session is saved locally in `./wa_session`, so you only need to scan once.
+When you run Zajel for the first time, a browser window will open. You must scan the QR code with your phone. The session is saved locally in `./wa_session`, so you only need to scan once.
 
 ```python
-from chatflow import ChatFlow
+from zajel import Zajel
 
 # headless=False lets you watch the bot work (Recommended for debugging)
-bot = ChatFlow(headless=False)
+bot = Zajel(headless=False)
 
 # Send a simple text
-bot.send_message("201202324408", "Hello World!")
+bot.send_message("1234567890", "Hello World!")
 
 # Close the browser safely
 bot.close()
@@ -77,14 +74,14 @@ bot.close()
 
 ### 2. Sending Files (Universal)
 
-You don't need to tell ChatFlow if it's an image or a PDF. Just provide the path.
+You don't need to tell Zajel if it's an image or a PDF. Just provide the path.
 
 ```python
 # Send a PDF Invoice
-bot.send_message("201202324408", "Here is the invoice", media_path="C:/docs/invoice_2024.pdf")
+bot.send_message("1234567890", "Here is the invoice", media_path="C:/docs/invoice_2024.pdf")
 
 # Send a Video
-bot.send_message("201202324408", "Check this out!", media_path="C:/media/demo.mp4")
+bot.send_message("1234567890", "Check this out!", media_path="C:/media/demo.mp4")
 ```
 
 ---
@@ -97,12 +94,12 @@ Use this for marketing or notifications. It iterates through a list of contacts 
 
 ```python
 contacts = [
-    {"phone": "201000000000", "message": "Hello Alice", "media_path": "promo.jpg"},
-    {"phone": "201000000001", "message": "Hello Bob"},  # No media
-    {"phone": "201000000002", "message": "Hello Charlie"}
+    {"phone": "1234567890", "message": "Hello Alice", "media_path": "promo.jpg"},
+    {"phone": "1234567891", "message": "Hello Bob"},  # No media
+    {"phone": "1234567892", "message": "Hello Charlie"}
 ]
 
-bot = ChatFlow()
+bot = Zajel()
 
 # min_delay=10, max_delay=25
 # This ensures the bot waits 10-25 seconds randomly between messages.
@@ -115,7 +112,7 @@ bot.close()
 
 ## 📚 API Reference
 
-### `ChatFlow(session_dir, headless)`
+### `Zajel(session_dir, headless)`
 
 **Parameters:**
 - `session_dir` (str): Path to store the browser session (cookies/login). Default: `./wa_session`
@@ -161,9 +158,9 @@ Starts an infinite loop to monitor incoming messages.
 
 ### 1. "Send Button Not Found"
 
-ChatFlow uses an image asset (`assets/send_icon.png`) to find the button. If your screen resolution or scaling (DPI) is different, detection might fail.
+Zajel uses an image asset (`assets/send_icon.png`) to find the button. If your screen resolution or scaling (DPI) is different, detection might fail.
 
-**Fix:** Take a screenshot of your own "Send" button (the green paper plane), crop it, and replace the file in `chatflow/assets/send_icon.png`.
+**Fix:** Take a screenshot of your own "Send" button (the green paper plane), crop it, and replace the file in `zajel/assets/send_icon.png`.
 
 ---
 
@@ -173,7 +170,7 @@ If the log says "Clock detected" but it never verifies success:
 
 **Cause:** Slow internet or the "Clock" icon looks different on your OS.
 
-**Fix:** Replace `chatflow/assets/clock_icon.png` with a screenshot of the clock icon from your computer.
+**Fix:** Replace `zajel/assets/clock_icon.png` with a screenshot of the clock icon from your computer.
 
 ---
 
@@ -187,7 +184,7 @@ If the log says "Clock detected" but it never verifies success:
 
 ## 🏗️ Architecture Explained
 
-ChatFlow uses a **Multi-Scale Template Matching** algorithm:
+Zajel uses a **Multi-Scale Template Matching** algorithm:
 
 1. **Capture:** It takes a screenshot of the browser viewport
 2. **Scale:** It resizes the "Target Icon" (Send button) to 10 different sizes (from 80% to 120%)

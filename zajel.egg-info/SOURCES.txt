@@ -1,0 +1,17 @@
+MANIFEST.in
+README.md
+setup.py
+tests/test_bot.py
+zajel/__init__.py
+zajel/config.py
+zajel/core.py
+zajel/exceptions.py
+zajel/utils.py
+zajel/vision.py
+zajel.egg-info/PKG-INFO
+zajel.egg-info/SOURCES.txt
+zajel.egg-info/dependency_links.txt
+zajel.egg-info/requires.txt
+zajel.egg-info/top_level.txt
+zajel/assets/clock_icon.png
+zajel/assets/send_icon.png

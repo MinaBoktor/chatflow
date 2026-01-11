@@ -4,7 +4,7 @@ import pyautogui
 from playwright.sync_api import Page
 from . import config, utils
 
-logger = logging.getLogger("ChatFlow")
+logger = logging.getLogger("zajel")
 
 def smart_send_and_verify(page: Page, click_selector: str) -> bool:
     """
