@@ -50,7 +50,6 @@ class ChatFlow:
             # 2. Verify Chat Open
             try:
                 self.page.wait_for_selector(config.SELECTORS['message_box'], timeout=5000)
-                pre_count = self.page.locator(config.SELECTORS['msg_row']).count()
             except:
                 logger.error(f"❌ Chat not found for {clean_phone}")
                 return
@@ -60,93 +59,98 @@ class ChatFlow:
                 if utils.copy_image_to_clipboard(image_path):
                     logger.info("Pasting image...")
                     
+                    # Paste Loop
                     paste_success = False
                     for i in range(3):
-                        # Check if window is ALREADY open (e.g. from previous loop)
-                        if self.page.is_visible(config.SELECTORS['media_editor']):
-                            logger.info("✅ Image Window detected (Already Open).")
+                        self.page.click(config.SELECTORS['message_box'], force=True)
+                        time.sleep(0.2)
+                        self.page.keyboard.press("Control+v")
+                        time.sleep(1.5) 
+                        
+                        if utils.find_button_on_monitor(config.REF_SEND_ICON):
+                            logger.info("✅ Visual Check: Window Open.")
                             paste_success = True
                             break
-
-                        try:
-                            # A. Force Focus
-                            self.page.click(config.SELECTORS['message_box'], force=True)
-                            time.sleep(0.2)
-                            self.page.keyboard.press("Space") 
-                            self.page.keyboard.press("Backspace")
-                            
-                            # B. Paste
-                            time.sleep(0.5)
-                            self.page.keyboard.press("Control+v")
-                            
-                            # C. Check for Modal (Increased Timeout to 5s)
-                            self.page.wait_for_selector(config.SELECTORS['media_editor'], timeout=5000)
-                            logger.info("✅ Image Window detected.")
+                        if self.page.is_visible(config.SELECTORS['media_editor']):
                             paste_success = True
-                            break 
-                        except Exception:
-                            logger.warning(f"⚠️ Paste attempt {i+1} failed to detect window. Retrying...")
-                            time.sleep(1)
+                            break
                     
                     if not paste_success:
-                        logger.error("❌ Paste failed: Image preview window didn't open.")
+                        logger.error("❌ Failed to open image window.")
                         return
 
-                    # D. Type Caption
-                    if message:
-                        self.page.keyboard.type(message)
+                    if message: self.page.keyboard.type(message)
                     
-                    # E. Physical Click (Human Style)
-                    logger.info("Vision: Scanning for Send Button...")
-                    coords = utils.find_button_on_monitor(config.REF_IMAGE)
-                    
+                    # Click Send
+                    logger.info("Vision: Clicking Send Button...")
+                    coords = utils.find_button_on_monitor(config.REF_SEND_ICON)
                     if coords:
-                        logger.info(f"Vision: Found at {coords}. Clicking human-style...")
                         utils.human_click(coords[0], coords[1])
+                        # Wait for window close
+                        try:
+                            self.page.wait_for_selector(config.SELECTORS['media_editor'], state="hidden", timeout=8000)
+                        except:
+                            logger.error("❌ Window stuck open.")
+                            return
+                        
+                        # Verify Delivery (Polling Strategy)
+                        self._smart_verify()
                     else:
-                        logger.warning("Vision: Button not found. Trying Enter key.")
-                        self.page.keyboard.press("Enter")
-                    
-                    # F. Verify (Strict)
-                    try:
-                        self.page.wait_for_selector(config.SELECTORS['media_editor'], state="hidden", timeout=8000)
-                        logger.info("✅ UI Verification: Preview window closed.")
-                    except:
-                        logger.error("❌ FAILED: Image preview window stuck open. Click missed.")
-                        return 
-                    
-                    self._verify_tick(pre_count)
-
+                        logger.error("❌ Send button not found.")
             else:
                 self.page.click(config.SELECTORS['message_box'], force=True)
                 self.page.keyboard.type(message)
                 self.page.keyboard.press("Enter")
-                self._verify_tick(pre_count)
+                self._smart_verify()
                 
         except Exception as e:
             logger.error(f"Error: {e}")
 
-    def _verify_tick(self, pre_count):
-        logger.info("Verifying delivery on server...")
-        try:
-            new_msg_appeared = False
-            for _ in range(20): 
-                curr = self.page.locator(config.SELECTORS['msg_row']).count()
-                if curr > pre_count:
-                    new_msg_appeared = True
-                    break
-                time.sleep(0.5)
+    def _smart_verify(self):
+        """
+        Polls for 10 seconds looking for EITHER:
+        1. A Clock (to start monitoring).
+        2. A Tick (to confirm instant success).
+        """
+        logger.info("Verifying delivery (Polling for Status)...")
+        
+        start_time = time.time()
+        timeout = 10  # Seconds to find the initial status
+        
+        while time.time() - start_time < timeout:
             
-            if not new_msg_appeared:
-                logger.error("❌ FAILED: Message count did not increase.")
+            # A. Check for Immediate Success (Tick) via DOM
+            # This handles "Instant Send" where Clock never appears
+            try:
+                last_msg = self.page.locator(config.SELECTORS['msg_row']).last
+                if last_msg.locator(config.SELECTORS['msg_sent']).is_visible():
+                    logger.info("✅ SUCCESS: Tick found immediately.")
+                    return
+            except:
+                pass
+
+            # B. Check for Pending State (Clock) via Vision
+            # This handles "Slow Send"
+            clock_box = utils.find_latest_clock(config.REF_CLOCK)
+            if clock_box:
+                logger.info(f"🕒 Clock detected at {clock_box}. Locking on...")
+                
+                # We found the clock! Now we wait up to 30s for it to change.
+                changed = utils.wait_for_pixel_change(clock_box, timeout=30)
+                if changed:
+                    logger.info("✅ SUCCESS: Clock turned into Tick.")
+                else:
+                    logger.error("❌ FAILED: Message stuck on Clock for 30s.")
                 return
 
-            last_msg = self.page.locator(config.SELECTORS['msg_row']).last
-            last_msg.locator(config.SELECTORS['msg_sent']).wait_for(state="visible", timeout=10000)
-            logger.info("✅ SUCCESS: Tick verified.")
-        except:
-            logger.error("❌ FAILED: Tick verification timed out.")
+            # Wait briefly before scanning again to save CPU
+            time.sleep(0.5)
 
-    def close(self):
-        self.browser.close()
-        self.playwright.stop()
+        logger.error("❌ FAILED: Timed out. Neither Clock nor Tick appeared.")
+
+    def close(self, keep_open=False):
+        if keep_open: 
+            logger.info("⏸️ Browser kept open. Press ENTER to close...")
+            input()
+        if self.browser: self.browser.close()
+        if self.playwright: self.playwright.stop()
