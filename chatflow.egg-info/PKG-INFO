@@ -1,12 +1,243 @@
 Metadata-Version: 2.4
 Name: chatflow
-Version: 2.0.0
-Summary: Production-ready WhatsApp Automation Library
+Version: 1.0.0
+Summary: A Computer-Vision powered WhatsApp automation library.
+Home-page: https://github.com/MinaBoktor/chatflow
+Author: Mina Boktor
+Author-email: mina.maged.pe@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
 Requires-Dist: playwright
 Requires-Dist: opencv-python
-Requires-Dist: numpy
 Requires-Dist: pyautogui
 Requires-Dist: Pillow
-Requires-Dist: pywin32; sys_platform == "win32"
+Requires-Dist: pywin32; platform_system == "Windows"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
 Dynamic: requires-dist
+Dynamic: requires-python
 Dynamic: summary
+
+# ChatFlow 👁️
+
+**The Vision-Enhanced, Stealth-First WhatsApp Automation Library**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-win%20|%20linux%20|%20macos-lightgrey)]()
+
+**ChatFlow** is a production-grade automation library for WhatsApp Web. Unlike fragile DOM-based bots that break when WhatsApp updates their CSS, ChatFlow uses a **Hybrid Computer Vision Engine** to visually verify actions.
+
+It was engineered specifically to solve the "Ghost Click" and "RTL Mirroring" issues common in Arabic/Hebrew automation, making it the most reliable choice for multilingual support.
+
+---
+
+## 🌟 Key Features
+
+- **👁️ Visual Verification Protocol**  
+  Most bots assume a message is sent after clicking "Enter". ChatFlow **watches** the screen using OpenCV. It detects the gray "Clock" icon and waits specifically for it to turn into a "Tick" before proceeding.
+
+- **🌍 Native Arabic/RTL Support**  
+  Handles mirrored interfaces automatically. No need to switch your phone's language to English.
+
+- **📎 Universal Media Clipboard**  
+  Uses OS-level clipboard injection (`CF_HDROP`) to send **PDFs, Images, Videos, and Audio** files without navigating complex attachment menus.
+
+- **👻 Stealth Listening**  
+  Reads incoming messages from the sidebar **without opening the chat**. This allows you to filter messages (White-List) without triggering the "Blue Ticks" for unwanted contacts.
+
+- **🛡️ Anti-Ban Safeguards**
+  - **Randomized Delays:** Simulates human thinking time between bulk actions
+  - **UI Hard Resets:** Presses `ESC` twice between actions to ensure the interface is never stuck in a "Search" or "Selected" state
+  - **Human Mouse Curves:** Uses `pyautogui` to simulate natural mouse movement rather than instant teleportation
+
+---
+
+## 📦 Installation
+
+### 1. Install the package
+
+```bash
+pip install chatflow-bot
+```
+
+### 2. Install Playwright Browsers
+
+ChatFlow uses a dedicated Chromium instance (not your personal Chrome) to ensure a clean session.
+
+```bash
+playwright install chromium
+```
+
+### 3. Requirements
+
+- Python 3.8 or higher
+- Windows (recommended for Clipboard features), macOS, or Linux
+
+---
+
+## 🚀 Quick Start
+
+### 1. The Basics
+
+When you run ChatFlow for the first time, a browser window will open. You must scan the QR code with your phone. The session is saved locally in `./wa_session`, so you only need to scan once.
+
+```python
+from chatflow import ChatFlow
+
+# headless=False lets you watch the bot work (Recommended for debugging)
+bot = ChatFlow(headless=False)
+
+# Send a simple text
+bot.send_message("201202324408", "Hello World!")
+
+# Close the browser safely
+bot.close()
+```
+
+### 2. Sending Files (Universal)
+
+You don't need to tell ChatFlow if it's an image or a PDF. Just provide the path.
+
+```python
+# Send a PDF Invoice
+bot.send_message("201202324408", "Here is the invoice", media_path="C:/docs/invoice_2024.pdf")
+
+# Send a Video
+bot.send_message("201202324408", "Check this out!", media_path="C:/media/demo.mp4")
+```
+
+---
+
+## 🔥 Advanced Usage
+
+### 📢 Bulk Broadcaster (Anti-Ban Mode)
+
+Use this for marketing or notifications. It iterates through a list of contacts with safety delays.
+
+```python
+contacts = [
+    {"phone": "201000000000", "message": "Hello Alice", "media_path": "promo.jpg"},
+    {"phone": "201000000001", "message": "Hello Bob"},  # No media
+    {"phone": "201000000002", "message": "Hello Charlie"}
+]
+
+bot = ChatFlow()
+
+# min_delay=10, max_delay=25
+# This ensures the bot waits 10-25 seconds randomly between messages.
+bot.send_bulk(contacts, min_delay=10, max_delay=25)
+
+bot.close()
+```
+
+---
+
+## 📚 API Reference
+
+### `ChatFlow(session_dir, headless)`
+
+**Parameters:**
+- `session_dir` (str): Path to store the browser session (cookies/login). Default: `./wa_session`
+- `headless` (bool): Run without a visible UI. Default: `False`  
+  *Note: WhatsApp Web often requires a visible UI for proper rendering.*
+
+---
+
+### `send_message(phone, message, media_path)`
+
+Sends a single message.
+
+**Parameters:**
+- `phone` (str): The phone number (with country code, no `+`)
+- `message` (str): The text caption or message body
+- `media_path` (str, optional): Absolute path to a file
+
+---
+
+### `send_bulk(contacts, min_delay, max_delay)`
+
+Sends messages to a list.
+
+**Parameters:**
+- `contacts` (list): A list of dictionaries `{'phone': '...', 'message': '...'}`
+- `min_delay` (int): Minimum seconds to sleep between chats
+- `max_delay` (int): Maximum seconds to sleep between chats
+
+---
+
+### `start_listening(callback_func, allowed_users, check_interval)`
+
+Starts an infinite loop to monitor incoming messages.
+
+**Parameters:**
+- `callback_func`: A function `f(text, sender)` that returns a string (reply) or `None`
+- `allowed_users` (list): A list of exact names (as they appear in the sidebar) to reply to
+- `check_interval` (int): Seconds to wait between sidebar scans
+
+---
+
+## 🔧 Troubleshooting & Calibration
+
+### 1. "Send Button Not Found"
+
+ChatFlow uses an image asset (`assets/send_icon.png`) to find the button. If your screen resolution or scaling (DPI) is different, detection might fail.
+
+**Fix:** Take a screenshot of your own "Send" button (the green paper plane), crop it, and replace the file in `chatflow/assets/send_icon.png`.
+
+---
+
+### 2. "Message Stuck on Clock"
+
+If the log says "Clock detected" but it never verifies success:
+
+**Cause:** Slow internet or the "Clock" icon looks different on your OS.
+
+**Fix:** Replace `chatflow/assets/clock_icon.png` with a screenshot of the clock icon from your computer.
+
+---
+
+### 3. "Clipboard Error"
+
+**Cause:** Trying to send media on Linux/Mac without the proper clipboard tools.
+
+**Fix:** This feature is optimized for Windows (`pywin32`). On Linux, ensure `xclip` is installed.
+
+---
+
+## 🏗️ Architecture Explained
+
+ChatFlow uses a **Multi-Scale Template Matching** algorithm:
+
+1. **Capture:** It takes a screenshot of the browser viewport
+2. **Scale:** It resizes the "Target Icon" (Send button) to 10 different sizes (from 80% to 120%)
+3. **Match:** It scans the screen for the best match. This allows the bot to work even if your browser zoom level is slightly off
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/NewFeature`)
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+**Built with precision by Mina Boktor** ✨

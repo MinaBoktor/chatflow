@@ -1,3 +1,4 @@
+MANIFEST.in
 README.md
 setup.py
 chatflow/__init__.py
@@ -11,4 +12,6 @@ chatflow.egg-info/SOURCES.txt
 chatflow.egg-info/dependency_links.txt
 chatflow.egg-info/requires.txt
 chatflow.egg-info/top_level.txt
+chatflow/assets/clock_icon.png
+chatflow/assets/send_icon.png
 tests/test_bot.py
