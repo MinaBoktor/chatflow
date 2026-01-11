@@ -1,5 +1,6 @@
 import time
 import logging
+import random
 import pyautogui
 from playwright.sync_api import sync_playwright
 from . import config, utils, exceptions
@@ -33,10 +34,38 @@ class ChatFlow:
         except:
             raise exceptions.LoginTimeoutError("Login timed out.")
 
-    def send_message(self, phone: str, message: str = "", image_path: str = None):
+    def send_bulk(self, contacts: list, min_delay=10, max_delay=25):
+        total = len(contacts)
+        logger.info(f"🚀 Starting Bulk Campaign: {total} messages.")
+        for i, contact in enumerate(contacts):
+            phone = contact.get('phone')
+            msg = contact.get('message', "")
+            media = contact.get('media_path', None) # Renamed for clarity, logic is same
+            
+            logger.info(f"--- Processing [{i+1}/{total}]: {phone} ---")
+            self.send_message(phone, msg, media)
+            
+            if i < total - 1:
+                sleep_time = random.randint(min_delay, max_delay)
+                logger.info(f"😴 Safety Sleep: Waiting {sleep_time} seconds...")
+                time.sleep(sleep_time)
+        logger.info("✅ Bulk Campaign Completed!")
+
+    def send_message(self, phone: str, message: str = "", media_path: str = None):
+        """
+        Sends a message to a phone number.
+        :param media_path: Path to ANY file (Image, PDF, Video).
+        """
         try:
             self.page.bring_to_front()
             clean_phone = phone.replace("+", "").replace(" ", "")
+            
+            # --- RESET UI ---
+            logger.info("Resetting UI state...")
+            self.page.keyboard.press("Escape")
+            time.sleep(0.5)
+            self.page.keyboard.press("Escape")
+            time.sleep(1.0) 
             
             # 1. Search
             logger.info(f"Searching for {clean_phone}...")
@@ -44,20 +73,23 @@ class ChatFlow:
             self.page.keyboard.press("Control+a")
             self.page.keyboard.press("Backspace")
             self.page.keyboard.type(clean_phone)
-            time.sleep(1.5)
+            time.sleep(3.0) 
             self.page.keyboard.press("Enter")
             
             # 2. Verify Chat Open
             try:
-                self.page.wait_for_selector(config.SELECTORS['message_box'], timeout=5000)
+                self.page.wait_for_selector(config.SELECTORS['message_box'], timeout=30000)
             except:
-                logger.error(f"❌ Chat not found for {clean_phone}")
+                logger.error(f"❌ Chat failed to load for {clean_phone}")
+                self.page.keyboard.press("Escape")
+                self.page.keyboard.press("Escape")
                 return
 
-            # 3. Send Logic
-            if image_path:
-                if utils.copy_image_to_clipboard(image_path):
-                    logger.info("Pasting image...")
+            # 3. Media Logic (Universal Copy-Paste)
+            if media_path:
+                # Use the new Universal File Copy function
+                if utils.copy_file_to_clipboard(media_path):
+                    logger.info(f"Pasting media: {media_path}...")
                     
                     # Paste Loop
                     paste_success = False
@@ -68,7 +100,7 @@ class ChatFlow:
                         time.sleep(1.5) 
                         
                         if utils.find_button_on_monitor(config.REF_SEND_ICON):
-                            logger.info("✅ Visual Check: Window Open.")
+                            logger.info("✅ Visual Check: Preview Window Open.")
                             paste_success = True
                             break
                         if self.page.is_visible(config.SELECTORS['media_editor']):
@@ -76,7 +108,7 @@ class ChatFlow:
                             break
                     
                     if not paste_success:
-                        logger.error("❌ Failed to open image window.")
+                        logger.error("❌ Failed to paste media.")
                         return
 
                     if message: self.page.keyboard.type(message)
@@ -86,20 +118,19 @@ class ChatFlow:
                     coords = utils.find_button_on_monitor(config.REF_SEND_ICON)
                     if coords:
                         utils.human_click(coords[0], coords[1])
-                        # Wait for window close
                         try:
                             self.page.wait_for_selector(config.SELECTORS['media_editor'], state="hidden", timeout=8000)
                         except:
                             logger.error("❌ Window stuck open.")
                             return
                         
-                        # Verify Delivery (Polling Strategy)
                         self._smart_verify()
                     else:
                         logger.error("❌ Send button not found.")
             else:
                 self.page.click(config.SELECTORS['message_box'], force=True)
                 self.page.keyboard.type(message)
+                time.sleep(0.5) 
                 self.page.keyboard.press("Enter")
                 self._smart_verify()
                 
@@ -107,45 +138,27 @@ class ChatFlow:
             logger.error(f"Error: {e}")
 
     def _smart_verify(self):
-        """
-        Polls for 10 seconds looking for EITHER:
-        1. A Clock (to start monitoring).
-        2. A Tick (to confirm instant success).
-        """
-        logger.info("Verifying delivery (Polling for Status)...")
-        
+        logger.info("Verifying delivery...")
         start_time = time.time()
-        timeout = 10  # Seconds to find the initial status
-        
+        timeout = 10 
         while time.time() - start_time < timeout:
-            
-            # A. Check for Immediate Success (Tick) via DOM
-            # This handles "Instant Send" where Clock never appears
             try:
                 last_msg = self.page.locator(config.SELECTORS['msg_row']).last
                 if last_msg.locator(config.SELECTORS['msg_sent']).is_visible():
                     logger.info("✅ SUCCESS: Tick found immediately.")
                     return
-            except:
-                pass
-
-            # B. Check for Pending State (Clock) via Vision
-            # This handles "Slow Send"
+            except: pass
+            
             clock_box = utils.find_latest_clock(config.REF_CLOCK)
             if clock_box:
                 logger.info(f"🕒 Clock detected at {clock_box}. Locking on...")
-                
-                # We found the clock! Now we wait up to 30s for it to change.
                 changed = utils.wait_for_pixel_change(clock_box, timeout=30)
                 if changed:
                     logger.info("✅ SUCCESS: Clock turned into Tick.")
                 else:
                     logger.error("❌ FAILED: Message stuck on Clock for 30s.")
                 return
-
-            # Wait briefly before scanning again to save CPU
             time.sleep(0.5)
-
         logger.error("❌ FAILED: Timed out. Neither Clock nor Tick appeared.")
 
     def close(self, keep_open=False):

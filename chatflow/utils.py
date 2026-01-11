@@ -3,26 +3,61 @@ import cv2
 import numpy as np
 import pyautogui
 import win32clipboard
-from io import BytesIO
-from PIL import Image
+import win32con
+from ctypes import *
+from ctypes.wintypes import *
 import time
 
 pyautogui.FAILSAFE = True
 
-def copy_image_to_clipboard(image_path: str) -> bool:
-    if not os.path.exists(image_path): return False
+# Structure for File Drop (CF_HDROP)
+class DROPFILES(Structure):
+    _fields_ = [("pFiles", DWORD),
+                ("pt", POINT),
+                ("fNC", BOOL),
+                ("fWide", BOOL)]
+
+def copy_file_to_clipboard(file_path: str) -> bool:
+    """
+    Copies a file (Image, PDF, Video, etc.) to the clipboard 
+    so it can be pasted (Ctrl+V) into WhatsApp.
+    """
+    if not os.path.exists(file_path): 
+        print(f"❌ Error: File not found: {file_path}")
+        return False
+        
     try:
-        image = Image.open(image_path)
-        output = BytesIO()
-        image.convert("RGB").save(output, "BMP")
-        data = output.getvalue()[14:] 
-        output.close()
+        # Absolute path is required for clipboard operations
+        abs_path = os.path.abspath(file_path)
+        
+        # Create the DROPFILES structure
+        offset = sizeof(DROPFILES)
+        length = len(abs_path) + 1
+        size = offset + (length * 2) # *2 for WideChar (UTF-16)
+        
+        buf = (c_char * size)()
+        df = DROPFILES.from_buffer(buf)
+        df.pFiles = offset
+        df.fWide = True
+        
+        # Copy the path into the buffer after the header
+        for i, char in enumerate(abs_path):
+            buf[offset + i*2] = ord(char)
+            buf[offset + i*2 + 1] = 0
+            
+        # Open Clipboard
         win32clipboard.OpenClipboard()
         win32clipboard.EmptyClipboard()
-        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        
+        # Set the data as a "File Drop" (CF_HDROP)
+        win32clipboard.SetClipboardData(win32clipboard.CF_HDROP, buf)
         win32clipboard.CloseClipboard()
         return True
-    except: return False
+    except Exception as e:
+        print(f"❌ Clipboard Error: {e}")
+        return False
+
+# --- KEEP YOUR EXISTING VISION FUNCTIONS BELOW ---
 
 def find_button_on_monitor(template_path: str):
     """Finds the BEST single match using Multi-Scale."""
@@ -55,17 +90,13 @@ def find_button_on_monitor(template_path: str):
             
     if found:
         loc, rw, rh = found
-        # FIX: Convert numpy types to python int
         center_x = int(loc[0] + rw // 2)
         center_y = int(int(h*0.5) + loc[1] + rh // 2)
         return (center_x, center_y)
     return None
 
 def find_latest_clock(template_path: str):
-    """
-    Finds the BOTTOM-MOST 'Clock' using Multi-Scale.
-    Returns standard python ints: (x, y, w, h).
-    """
+    """Finds the BOTTOM-MOST 'Clock' using Multi-Scale."""
     if not os.path.exists(template_path): 
         print(f"❌ Error: {template_path} not found.")
         return None
@@ -97,22 +128,18 @@ def find_latest_clock(template_path: str):
             
             if current_y > best_y:
                 best_y = current_y
-                # FIX: Explicit int() casting
                 best_match = (int(current_x), int(current_y), int(rw), int(rh))
                 
     return best_match
 
 def wait_for_pixel_change(region, timeout=30):
     """Monitors region for pixel changes."""
-    # Ensure all inputs are standard ints
     x, y, w, h = map(int, region)
     
     sw, sh = pyautogui.size()
     if x+w > sw or y+h > sh: return False
     
     start_time = time.time()
-    
-    # Baseline
     initial_shot = pyautogui.screenshot(region=(x, y, w, h))
     initial_arr = cv2.cvtColor(np.array(initial_shot), cv2.COLOR_RGB2GRAY)
     
@@ -125,12 +152,9 @@ def wait_for_pixel_change(region, timeout=30):
         diff = cv2.absdiff(initial_arr, current_arr)
         non_zero_count = np.count_nonzero(diff)
         
-        # Sensitivity: If >10% of pixels change
         if non_zero_count > (w * h) * 0.10:
             return True
-            
         time.sleep(0.1) 
-        
     return False
 
 def human_click(x, y):
